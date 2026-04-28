@@ -1,50 +1,22 @@
-import { Hono } from 'hono'
+import { Hono } from 'hono';
+import userRoutes from './routes/userRoutes';
+import postRoutes from './routes/postRoutes';
+import commentRoutes from './routes/commentRoutes';
 
-const app = new Hono()
+const app = new Hono();
 
-// In-Memory User Store
-type User = {
-  id: string;
-  name: string;
-  email: string;
-  password: string;
-}
+app.route('/users', userRoutes);
+app.route('/posts', postRoutes);
+app.route('/comments', commentRoutes);
 
-const users: User[] = []
+// Compatibility for original endpoints if needed, but userRoutes handles /signup and /signin
+// Since app.route('/users', userRoutes) mounts to /users, /users/signup would be the path.
+// The PDF says "Creating and retrieving users", "Creating and retrieving posts", etc.
+// Usually these are prefixed.
+// Let's adjust userRoutes to handle top level if needed, or just mount them as they are.
 
-// get all users
-app.get('/users', (c) => {
-  return c.json(users)
-})
+// Actually, let's mount signup/signin at the root for compatibility with previous version
+app.post('/signup', async (c) => userRoutes.fetch(c.req.raw));
+app.post('/signin', async (c) => userRoutes.fetch(c.req.raw));
 
-// get user by id
-app.get('/users/:id', (c) => {
-  const id = c.req.param('id')
-  const user = users.find(u => u.id === id)
-  if (!user) return c.json({ error: 'User not found' }, 404)
-  return c.json(user)
-})
-
-// signup
-app.post('/signup', async (c) => {
-  const { name, email, password } = await c.req.json()
-  if (users.some(u => u.email === email)) return c.json({ error: 'Email already exists' }, 400)
-  
-  const newUser: User = { id: crypto.randomUUID(), name, email, password }
-  users.push(newUser)
-  
-  const { password: _, ...userWithoutPassword } = newUser
-  return c.json(userWithoutPassword, 201)
-})
-
-// signin
-app.post('/signin', async (c) => {
-  const { email, password } = await c.req.json()
-  const user = users.find(u => u.email === email && u.password === password)
-  if (!user) return c.json({ error: 'Invalid credentials' }, 401)
-  
-  const { password: _, ...userWithoutPassword } = user
-  return c.json({ message: 'Login successful', user: userWithoutPassword })
-})
-
-export default app
+export default app;
